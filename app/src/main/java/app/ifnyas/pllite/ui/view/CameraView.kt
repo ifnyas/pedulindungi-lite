@@ -27,7 +27,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.text.isDigitsOnly
 import androidx.lifecycle.LifecycleOwner
 import androidx.navigation.NavController
-import app.ifnyas.pllite.Screen
+import app.ifnyas.pllite.model.Screen
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.TextRecognizer
@@ -154,14 +154,18 @@ class ObjectDetectorImageAnalyzer(
 
             textRecognizer.process(image)
                 .addOnCompleteListener {
-                    if (it.isSuccessful)
-                    // extractedText.value = it.result.text
+                    if (it.isSuccessful) {
+                        // extractedText.value = it.result.text
                         it.result?.text?.split("\n")?.forEach { str ->
                             if (str.length == 16 && str.isDigitsOnly())
                                 navController.navigate(
                                     Screen.MainScreen.withArgs(str)
-                                )
+                                ) {
+                                    launchSingleTop = true
+                                    popUpTo(Screen.MainScreen.route) { inclusive = true }
+                                }
                         }
+                    }
                     imageProxy.close()
                 }
         }

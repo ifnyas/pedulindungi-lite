@@ -1,17 +1,21 @@
 package app.ifnyas.pllite.ui.view
 
 import android.annotation.SuppressLint
-import android.util.Log
+import android.graphics.Bitmap
 import android.webkit.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.navigation.NavController
+import app.ifnyas.pllite.model.Screen
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Dispatchers.Main
 import kotlinx.coroutines.launch
+import org.json.JSONObject
+
 
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-fun ComposeWebView(nik: String?) {
+fun ComposeWebView(navController: NavController, nik: String) {
     AndroidView(factory = {
         WebView(it).apply {
             // set cookie manager
@@ -21,10 +25,20 @@ fun ComposeWebView(nik: String?) {
 
             // set web view client
             webViewClient = object : WebViewClient() {
+                override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
+                    evaluateJavascript(
+                        context.assets.open("interceptor.js").reader().readText(),
+                        null
+                    )
+                }
+
                 override fun onPageFinished(view: WebView, url: String) {
-                    CoroutineScope(Dispatchers.Main).launch {
-                        val fun1 = "document.querySelector('[type=\"text\"]').value = '$nik'"
-                        loadUrl("javascript: (function() { $fun1; }) ();")
+                    CoroutineScope(Main).launch {
+                        val funNik = "document.querySelector('[type=\"text\"]').value = '$nik'"
+                        evaluateJavascript(
+                            "(function() { $funNik; }) ();",
+                            null
+                        )
                     }
                 }
             }.apply {
@@ -36,7 +50,24 @@ fun ComposeWebView(nik: String?) {
             // set web chrome client
             webChromeClient = object : WebChromeClient() {
                 override fun onConsoleMessage(msg: ConsoleMessage): Boolean {
-                    Log.d("WebView", msg.message())
+                    // Log.d("TAG", "onConsoleMessage: ${msg.message()}")
+                    try {
+                        val json = JSONObject(msg.message())
+                        val vaccine = json.getJSONObject("hasilVaksin")
+                        val code = vaccine.getInt("code")
+                        val message = vaccine.getString("message")
+
+                        val funNik = "return document.querySelector('[type=\"text\"]').value;"
+                        evaluateJavascript("(function() { $funNik }) ();") { value ->
+                            navController.navigate(
+                                Screen.ResultScreen.withArgs(
+                                    args = arrayOf(value, "$code", message)
+                                )
+                            )
+                        }
+                    } catch (e: Exception) {
+                        // Log.e("TAG", "onConsoleMessage: ${e.message}")
+                    }
                     return true
                 }
             }
@@ -48,8 +79,55 @@ fun ComposeWebView(nik: String?) {
     })
 }
 
-// init click event
-/*
+/* Success res
+{
+  "hasilTest": {
+    "success": true,
+    "code": 200,
+    "data": {
+      "tanggalPcr": null,
+      "adaHasilPcr": false,
+      "tanggalAntigen": null,
+      "adaHasilAntigen": false
+    },
+    "message": "Scan nik success"
+  },
+  "hasilVaksin": {
+    "success": true,
+    "code": 200,
+    "message": "Data vaksin ada",
+    "data": {
+      "adaDataVaksin": true
+    }
+  }
+}
+ */
+
+/* Failed res
+{
+  "hasilTest": {
+    "success": true,
+    "code": 200,
+    "data": {
+      "tanggalPcr": null,
+      "adaHasilPcr": false,
+      "tanggalAntigen": null,
+      "adaHasilAntigen": false
+    },
+    "message": "Scan nik success"
+  },
+  "hasilVaksin": {
+    "code": 404,
+    "success": false,
+    "message": "Data vaksin tidak ada",
+    "data": {
+      "adaDataVaksin": false
+    }
+  },
+}
+ */
+
+/* init click event
 val downTime = SystemClock.uptimeMillis()
 val eventTime = downTime + 100
 val x = 100.0f
