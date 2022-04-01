@@ -23,13 +23,7 @@ fun Navigation() {
         startDestination = startDestination
     ) {
         composable(Screen.MainScreen.route) {
-//            MainScreen(navController, "")
-            ResultScreen(
-                navController,
-                it.arguments?.getString("nik") ?: "3273140202950001",
-                it.arguments?.getInt("code") ?: 400,
-                it.arguments?.getString("message") ?: "Sudah Vaksin"
-            )
+            MainScreen(navController, "")
         }
 
         composable(Screen.CameraScreen.route) { CameraView(navController) }
